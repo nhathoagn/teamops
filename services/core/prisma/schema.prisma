@@ -1,0 +1,391 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Organizations table
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  domain    String?
+  logo      String?
+  settings  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members    Member[]
+  customers  Customer[]
+  services   Service[]
+  bookings   Booking[]
+  tasks      Task[]
+  incidents  Incident[]
+  invoices   Invoice[]
+  notifications Notification[]
+  auditLogs  AuditLog[]
+  attachments Attachment[]
+
+  @@map("organizations")
+}
+
+// Users table
+model User {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  passwordHash   String?
+  firstName      String?
+  lastName       String?
+  phone          String?
+  avatar         String?
+  role           UserRole  @default(MEMBER)
+  isActive       Boolean   @default(true)
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  members        Member[]
+  assignedTasks  Task[]    @relation("TaskAssignee")
+  createdTasks   Task[]    @relation("TaskCreator")
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+  attachments    Attachment[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  MEMBER
+  VIEWER
+}
+
+// Members (user-org relationship)
+model Member {
+  id        String     @id @default(uuid())
+  role      MemberRole @default(MEMBER)
+  userId    String
+  orgId     String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+  @@map("members")
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MANAGER
+  MEMBER
+  VIEWER
+}
+
+// Customers table
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  email     String?
+  phone     String?
+  company   String?
+  notes     String?
+  orgId     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+  invoices Invoice[]
+
+  @@index([orgId])
+  @@map("customers")
+}
+
+// Services table
+model Service {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  duration    Int      // in minutes
+  price       Decimal  @db.Decimal(10, 2)
+  isActive    Boolean  @default(true)
+  orgId       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org          Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  availability Availability[]
+  bookings     Booking[]
+
+  @@index([orgId])
+  @@map("services")
+}
+
+// Availability table
+model Availability {
+  id        String   @id @default(uuid())
+  dayOfWeek Int      // 0-6 (Sunday-Saturday)
+  startTime String   // HH:mm format
+  endTime   String   // HH:mm format
+  serviceId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+  @@map("availability")
+}
+
+// Bookings table
+model Booking {
+  id          String       @id @default(uuid())
+  startTime   DateTime
+  endTime     DateTime
+  status      BookingStatus @default(PENDING)
+  notes       String?
+  orgId       String
+  customerId  String
+  serviceId   String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customer Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  service  Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  tasks    Task[]
+
+  @@index([orgId])
+  @@index([customerId])
+  @@index([serviceId])
+  @@index([startTime])
+  @@map("bookings")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+// Tasks table
+model Task {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  status      TaskStatus @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?
+  orgId       String
+  bookingId   String?
+  assigneeId  String?
+  creatorId   String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  booking  Booking?     @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  assignee User?        @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  creator  User?        @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@index([assigneeId])
+  @@index([status])
+  @@map("tasks")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// Incidents table
+model Incident {
+  id          String          @id @default(uuid())
+  title       String
+  description String?
+  severity    IncidentSeverity @default(MEDIUM)
+  status      IncidentStatus  @default(OPEN)
+  resolvedAt  DateTime?
+  orgId       String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  org    Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  events IncidentEvent[]
+
+  @@index([orgId])
+  @@index([status])
+  @@map("incidents")
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  CLOSED
+}
+
+// Incident events table
+model IncidentEvent {
+  id          String   @id @default(uuid())
+  type        String
+  description String
+  metadata    Json?
+  incidentId  String
+  createdAt   DateTime @default(now())
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+  @@map("incident_events")
+}
+
+// Invoices table
+model Invoice {
+  id          String        @id @default(uuid())
+  number      String        @unique
+  status      InvoiceStatus @default(DRAFT)
+  totalAmount Decimal       @db.Decimal(10, 2)
+  dueDate     DateTime?
+  paidAt      DateTime?
+  orgId       String
+  customerId  String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customer Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items    InvoiceItem[]
+
+  @@index([orgId])
+  @@index([customerId])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+// Invoice items table
+model InvoiceItem {
+  id        String  @id @default(uuid())
+  description String
+  quantity  Int     @default(1)
+  unitPrice Decimal @db.Decimal(10, 2)
+  amount    Decimal @db.Decimal(10, 2)
+  invoiceId String
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+// Notifications table
+model Notification {
+  id        String           @id @default(uuid())
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  metadata  Json?
+  userId    String
+  orgId     String
+  createdAt DateTime         @default(now())
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([orgId])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  ERROR
+  SUCCESS
+}
+
+// Audit logs table
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  resource  String
+  resourceId String?
+  metadata  Json?
+  userId    String?
+  orgId     String
+  createdAt DateTime @default(now())
+
+  user User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([userId])
+  @@index([resource])
+  @@map("audit_logs")
+}
+
+// Attachments table
+model Attachment {
+  id        String   @id @default(uuid())
+  filename  String
+  mimeType  String
+  size      Int
+  url       String
+  userId    String?
+  orgId     String
+  createdAt DateTime @default(now())
+
+  user User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@map("attachments")
+}
+
+// Idempotency keys table
+model IdempotencyKey {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  response  Json?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}

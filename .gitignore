@@ -1,0 +1,28 @@
+# === Root ===
+.DS_Store
+Thumbs.db
+*.log
+
+# === Environment ===
+.env
+.env.local
+.env.*.local
+
+# === IDE ===
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# === Docker ===
+docker-compose.override.yml
+
+# === Coverage ===
+coverage/
+.nyc_output/
+
+# === Dependencies / build (safety net) ===
+node_modules/
+vendor/
+dist/
+*.sqlite
