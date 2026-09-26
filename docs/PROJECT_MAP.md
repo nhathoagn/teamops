@@ -1,6 +1,8 @@
 # TeamOps Project Map
 
 > Bản đồ này mô tả **code đang tồn tại trong repository** tại thời điểm cập nhật, đồng thời phân biệt phần đã triển khai với kiến trúc mục tiêu trong [`docs/plans/teamops-microservices.md`](plans/teamops-microservices.md).
+>
+> **Phạm vi diễn giải:** yêu cầu “tạo map cho project” không chỉ rõ loại map. Tài liệu này hiểu “map” là **codebase map phục vụ onboarding và phát triển**, gồm cấu trúc thư mục, service, route/API, mô hình dữ liệu, dependency flow, hạ tầng và khoảng cách giữa kế hoạch với implementation. Đây không phải sitemap UI thuần túy hay bản vẽ deployment production.
 
 ## 1. Tổng quan
 
