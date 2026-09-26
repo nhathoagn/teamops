@@ -2,9 +2,10 @@
 
 Side project luyện middle-level full-stack: Vue 3 + NestJS + Laravel microservices.
 
-## Plan
+## Documentation
 
-Full architecture, schema, queue design, and milestones: [docs/plans/teamops-microservices.md](docs/plans/teamops-microservices.md)
+- Current codebase map and implementation status: [docs/PROJECT_MAP.md](docs/PROJECT_MAP.md)
+- Full architecture, schema, queue design, and milestones: [docs/plans/teamops-microservices.md](docs/plans/teamops-microservices.md)
 
 ## Architecture
 
